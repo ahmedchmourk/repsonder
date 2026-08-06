@@ -1,0 +1,235 @@
+// Responder — Google Business Profile review automation
+//
+// Multi-business: every Business carries its own Google OAuth client, its own
+// LLM key, and its own written context (what it does, prices, policies). All
+// reviews, locations, logs and cron runs hang off a Business, so several
+// businesses can be managed side by side and switched in the UI.
+//
+// SQLite has no native enums, so those values are stored as strings; the allowed
+// set lives in src/lib/constants.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A business whose Google reviews Responder answers.
+model Business {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  /// Free-text brief the LLM is given: what the business does, its services,
+  /// prices, policies, opening hours — anything a reply might need to be
+  /// accurate. Replies may only use facts stated here.
+  context String
+
+  /// Optional voice controls layered on top of the context.
+  brandTone String?
+  signature String?
+
+  // --- Google OAuth client (one per business) ---
+  googleClientId     String
+  /// Encrypted at rest.
+  googleClientSecret String
+  /// The redirect URI registered on this business's OAuth client. Must match
+  /// Google's registration exactly. Null falls back to APP_BASE_URL + the
+  /// default callback path.
+  googleRedirectUri  String?
+
+  // --- LLM ---
+  /// "openai" | "gemini"
+  llmProvider String @default("gemini")
+  llmModel    String @default("gemini-flash-latest")
+  /// Encrypted at rest.
+  llmApiKey   String
+
+  // --- Behaviour ---
+  /// Never below 24 — enforced in code as well as here.
+  minReplyDelayHours Int     @default(24)
+  autoPublishEnabled Boolean @default(true)
+  /// Paused businesses are skipped by the cron jobs.
+  active             Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  oauth     OAuthAccount?
+  locations Location[]
+  reviews   Review[]
+  cronRuns  CronRun[]
+  logs      ActivityLog[]
+}
+
+/// The Google OAuth grant for one business.
+model OAuthAccount {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  googleEmail  String?
+  /// Encrypted at rest.
+  accessToken  String
+  /// Encrypted at rest. Google only issues this on first consent.
+  refreshToken String?
+  expiryDate   DateTime?
+  scope        String?
+  tokenType    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A Google Business Profile location belonging to a business.
+model Location {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// Full resource name, e.g. "locations/12345678901234567890"
+  googleName  String
+  /// Owning account resource name, e.g. "accounts/1234567890"
+  accountName String
+  title       String
+  address     String?
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews Review[]
+
+  @@unique([businessId, googleName])
+}
+
+/// A single Google review plus everything Responder decided about it.
+model Review {
+  id String @id @default(cuid())
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  /// Full Google resource name, e.g. "accounts/1/locations/2/reviews/abc"
+  googleName String
+  googleId   String
+
+  reviewerName     String
+  reviewerPhotoUrl String?
+  /// 1.0 - 5.0
+  starRating       Float
+  comment          String?
+  reviewCreateTime DateTime
+  reviewUpdateTime DateTime
+
+  /// A reply that already existed on Google when we first saw the review.
+  preexistingReply     String?
+  preexistingReplyTime DateTime?
+
+  ingestedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  /// One of ROUTE_* — see src/lib/constants.ts
+  route     String?
+  /// One of STATUS_* — see src/lib/constants.ts
+  status    String  @default("NEW")
+  sensitive Boolean @default(false)
+  /// JSON array of strings explaining the sensitivity flag.
+  sensitiveReasons String?
+  analysisSummary  String?
+
+  /// Earliest moment we are allowed to publish (>= 24h after ingestion).
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  publishedReply String?
+  approvedBy   String?
+  approvedAt   DateTime?
+
+  publishAttempts Int     @default(0)
+  lastError       String?
+
+  drafts Draft[]
+  logs   ActivityLog[]
+
+  @@unique([businessId, googleName])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([businessId, status])
+}
+
+/// A generated (or human-edited) reply candidate. The newest row wins.
+model Draft {
+  id       String @id @default(cuid())
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  content       String
+  model         String?
+  provider      String?
+  promptVersion String  @default("v1")
+  humanEdited   Boolean @default(false)
+  version       Int     @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewId])
+}
+
+/// Append-only audit trail.
+model ActivityLog {
+  id String @id @default(cuid())
+
+  /// Null for app-wide events such as "business created".
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  reviewId   String?
+  review     Review?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  /// INFO | WARN | ERROR
+  level String @default("INFO")
+  /// Machine-readable event key, e.g. "review.ingested", "reply.published"
+  event   String
+  message String
+  /// JSON blob of extra context.
+  metadata String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([businessId, createdAt])
+}
+
+/// One row per cron execution, per business.
+model CronRun {
+  id String @id @default(cuid())
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// "ingest" | "publish"
+  job String
+  /// RUNNING | SUCCESS | FAILED
+  status String @default("RUNNING")
+  /// "cron" | "manual"
+  trigger String @default("cron")
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  reviewsFetched   Int @default(0)
+  reviewsNew       Int @default(0)
+  reviewsProcessed Int @default(0)
+  repliesPublished Int @default(0)
+  errorCount       Int @default(0)
+
+  error String?
+
+  @@index([businessId, job, startedAt])
+}

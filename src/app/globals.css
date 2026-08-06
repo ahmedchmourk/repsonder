@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Responder Design Tokens (shared identity with OctiScraper) ───
+ *
+ * Values are bare oklch channel triplets so Tailwind's `/alpha` modifiers work.
+ * Light is the default; `.dark` on <html> flips the palette.
+ */
+
+:root {
+  --brand-black: 0.14 0 0;
+  --brand-lime: 0.68 0.19 127.2;
+
+  --background: 0.985 0.005 120;
+  --foreground: 0.16 0.02 240;
+  --card: 1 0 0;
+  --card-foreground: 0.16 0.02 240;
+  --popover: 1 0 0;
+  --popover-foreground: 0.16 0.02 240;
+  --primary: 0.62 0.2 130;
+  --primary-foreground: 1 0 0;
+  --secondary: 0.95 0.01 120;
+  --secondary-foreground: 0.16 0.02 240;
+  --muted: 0.95 0.01 120;
+  --muted-foreground: 0.48 0.02 240;
+  --accent: 0.62 0.2 130;
+  --accent-foreground: 1 0 0;
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 1 0 0;
+  --border: 0.9 0.01 120;
+  --input: 0.92 0.01 120;
+  --ring: 0.62 0.2 130;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 0.12 0 0;
+  --foreground: 0.97 0 0;
+  --card: 0.16 0 0;
+  --card-foreground: 0.97 0 0;
+  --popover: 0.16 0 0;
+  --popover-foreground: 0.97 0 0;
+  --primary: 0.72 0.19 127.2;
+  --primary-foreground: 0.14 0 0;
+  --secondary: 0.22 0 0;
+  --secondary-foreground: 0.97 0 0;
+  --muted: 0.22 0 0;
+  --muted-foreground: 0.62 0 0;
+  --accent: 0.72 0.19 127.2;
+  --accent-foreground: 0.14 0 0;
+  --destructive: 0.704 0.191 22.216;
+  --destructive-foreground: 0.14 0 0;
+  /* Opaque equivalents of OctiScraper's white-at-12% borders, so the alpha
+   * modifiers stay available. */
+  --border: 0.28 0 0;
+  --input: 0.28 0 0;
+  --ring: 0.72 0.19 127.2;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading), var(--font-sans), system-ui, sans-serif;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Visible focus for keyboard users everywhere. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: oklch(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--muted-foreground));
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  /* Page shell — matches OctiScraper's content width and gutters. */
+  .shell {
+    @apply mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-12;
+  }
+
+  /* ─── Glassmorphism ─── */
+  .glass {
+    background: oklch(var(--card) / 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-card {
+    background: oklch(var(--card) / 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* ─── Lime glow ─── */
+  .glow-lime {
+    box-shadow: 0 0 30px -5px oklch(0.68 0.19 127.2 / 0.25);
+  }
+
+  .glow-lime-sm {
+    box-shadow: 0 0 15px -3px oklch(0.68 0.19 127.2 / 0.2);
+  }
+
+  /* ─── Grid pattern background ─── */
+  .bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image:
+      linear-gradient(to right, oklch(0 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0 0 0 / 0.04) 1px, transparent 1px);
+  }
+
+  .dark .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, oklch(1 0 0 / 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(1 0 0 / 0.03) 1px, transparent 1px);
+  }
+
+  /* Loading skeletons */
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      oklch(var(--muted)) 25%,
+      oklch(var(--card)) 50%,
+      oklch(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+  }
+
+  /* Micro-label used above numbers and beside field groups. */
+  .micro-label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
