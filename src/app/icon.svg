@@ -1,9 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="oklch(0.62 0.2 130)" />
-  <path
-    d="M9 10.5h14M9 15h10M9 19.5h6"
-    stroke="#fff"
-    stroke-width="2.4"
-    stroke-linecap="round"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1E1E1E" />
+  <!-- The quote marks from the Responder wordmark. -->
+  <g fill="#FFFFFF">
+    <path d="M22.5 20c-5.2 0-9 3.7-9 8.8 0 4.4 3 7.6 7 7.6 1 0 1.9-.2 2.6-.5-.7 4-3.4 6.6-7.4 7.6l1.4 4.5c7.6-1.8 12.9-8 12.9-16.6C30 24.2 27 20 22.5 20Z" />
+    <path d="M43 20c-5.2 0-9 3.7-9 8.8 0 4.4 3 7.6 7 7.6 1 0 1.9-.2 2.6-.5-.7 4-3.4 6.6-7.4 7.6l1.4 4.5c7.6-1.8 12.9-8 12.9-16.6C50.5 24.2 47.5 20 43 20Z" />
+  </g>
 </svg>

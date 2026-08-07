@@ -1,9 +1,14 @@
-/** The four panels of the single-page dashboard. */
+/**
+ * The panels of the single-page dashboard.
+ *
+ * Labels are deliberately plain: someone who has never seen the app should be
+ * able to tell what each tab holds without being told.
+ */
 export const VIEWS = [
-  { key: 'auto', label: 'Auto-Replied' },
-  { key: 'approvals', label: 'Needs Approval' },
-  { key: 'escalations', label: 'Action Required' },
-  { key: 'settings', label: 'Settings' },
+  { key: 'auto', label: 'Replied for you' },
+  { key: 'approvals', label: 'Waiting for you' },
+  { key: 'escalations', label: 'Needs a person' },
+  { key: 'settings', label: 'Setup' },
 ] as const;
 
 export type DashboardView = (typeof VIEWS)[number]['key'];

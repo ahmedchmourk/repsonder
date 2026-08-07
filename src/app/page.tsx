@@ -6,19 +6,15 @@ import { RunJobButton } from '@/components/run-job-button';
 import { SetupNotice } from '@/components/setup-notice';
 import { StatStrip } from '@/components/stat-strip';
 import { ViewSwitcher } from '@/components/view-switcher';
-import { BusinessSwitcher } from '@/components/business/business-switcher';
 import { CreateBusinessForm } from '@/components/business/create-business-form';
 import { SettingsPanel } from '@/components/settings/settings-panel';
-import { TimeAgo } from '@/components/time-ago';
 import { getConnectionStatus } from '@/lib/google';
-import { getSchedulerInfo } from '@/lib/scheduler';
 import { computeScheduledFor } from '@/lib/pipeline';
 import { getCurrentBusiness, listBusinesses } from '@/lib/business';
+import { friendlySyncProblem } from '@/lib/humanize';
 import { parseView } from '@/lib/views';
 import {
-  getActivityLogs,
   getAutoRepliedReviews,
-  getCronRuns,
   getDashboardStats,
   getEscalatedReviews,
   getLastSyncFailure,
@@ -28,10 +24,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-/**
- * The whole app is this one page. `?view=` selects which panel is shown, and the
- * selected business (a cookie) scopes every query.
- */
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -43,17 +35,17 @@ export default async function DashboardPage({
 
   const [business, businesses] = await Promise.all([getCurrentBusiness(), listBusinesses()]);
 
-  // Nothing exists yet — the only thing to do is create a business.
+  // Nothing exists yet — the only thing to do is add an organisation.
   if (!business) {
     return (
-      <div className="mx-auto max-w-3xl space-y-5">
-        <div>
-          <h1 className="font-heading text-2xl font-extrabold tracking-tight">
-            Welcome to Responder
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div className="text-center">
+          <h1 className="font-heading text-3xl font-extrabold tracking-tight">
+            Let&apos;s get you set up
           </h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            Add the business whose Google reviews you want answered. You&apos;ll need its Google
-            OAuth client ID and secret, an LLM API key, and a description of what the business does.
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            Add the organisation whose Google reviews you want handled. Once it&apos;s connected,
+            Responder writes the easy replies for you and flags the ones that need you.
           </p>
         </div>
         <CreateBusinessForm />
@@ -64,56 +56,40 @@ export default async function DashboardPage({
   const businessId = business.id;
   const currentDto = businesses.find((b) => b.id === businessId)!;
 
-  const [stats, connection, locations, lastRuns] = await Promise.all([
+  const [stats, connection, locations] = await Promise.all([
     getDashboardStats(businessId),
     getConnectionStatus(business),
     getLocations(businessId),
-    getCronRuns(businessId, 1),
   ]);
 
   const setupItems: string[] = [];
   if (!connection.connected) {
-    setupItems.push(`${business.name} is not connected to Google yet.`);
+    setupItems.push(`Connect ${business.name} to Google to start receiving reviews.`);
   } else if (!connection.hasRefreshToken) {
-    setupItems.push('The Google connection has no refresh token — reconnect it.');
-  }
-  if (connection.connected && locations.length === 0) {
-    // The generic "no locations" line is useless on its own — the real reason is
-    // in the last failed sync, so surface that instead when we have it.
-    const lastFailure = await getLastSyncFailure(businessId);
+    setupItems.push('Your Google connection needs renewing — open Setup and reconnect.');
+  } else if (locations.length === 0) {
+    // Never surface Google's raw wording here — it is long and technical.
     setupItems.push(
-      lastFailure
-        ? `Locations could not be synced: ${lastFailure}`
-        : 'No locations have been synced yet — open Settings and press “Sync locations”.',
+      friendlySyncProblem(await getLastSyncFailure(businessId)) ??
+        'No locations loaded yet. Open Setup and refresh them.',
     );
   }
   if (!business.active) {
-    setupItems.push('This business is paused — the cron jobs will skip it.');
+    setupItems.push('This organisation is paused, so nothing is being checked.');
   }
 
-  const lastRun = lastRuns[0];
-
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-extrabold tracking-tight">{business.name}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {stats.total} review{stats.total === 1 ? '' : 's'} · {locations.length} location
-            {locations.length === 1 ? '' : 's'}
-            {lastRun ? (
-              <>
-                {' · last '}
-                {lastRun.job} <TimeAgo value={lastRun.startedAt} />
-              </>
-            ) : null}
+          <h1 className="font-heading text-3xl font-extrabold tracking-tight">{business.name}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {stats.total === 0
+              ? 'No reviews yet — they appear here automatically.'
+              : `${stats.total} review${stats.total === 1 ? '' : 's'}, sorted for you.`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <BusinessSwitcher businesses={businesses} currentId={businessId} />
-          <RunJobButton job="ingest" label="Fetch reviews" size="sm" />
-          <RunJobButton job="publish" label="Send due replies" variant="secondary" size="sm" />
-        </div>
+        <RunJobButton job="ingest" label="Check for new reviews" />
       </div>
 
       <SetupNotice items={setupItems} />
@@ -121,17 +97,17 @@ export default async function DashboardPage({
       <StatStrip
         stats={[
           {
-            label: 'Avg rating',
+            label: 'Average rating',
             value: stats.averageRating === null ? '—' : stats.averageRating.toFixed(1),
           },
-          { label: 'Auto-replied', value: stats.autoReplied },
+          { label: 'Replied for you', value: stats.autoReplied },
           {
-            label: 'Needs approval',
+            label: 'Waiting for you',
             value: stats.pendingApproval,
             tone: stats.pendingApproval > 0 ? 'warning' : 'default',
           },
           {
-            label: 'Action required',
+            label: 'Needs a person',
             value: stats.needsAttention,
             tone: stats.needsAttention > 0 ? 'danger' : 'default',
           },
@@ -154,11 +130,6 @@ export default async function DashboardPage({
           businessCount={businesses.length}
           connection={connection}
           locations={locations}
-          runs={await getCronRuns(businessId, 6)}
-          logs={await getActivityLogs(businessId, 10)}
-          scheduler={getSchedulerInfo()}
-          cronSecretConfigured={Boolean(process.env.CRON_SECRET)}
-          baseUrl={process.env.APP_BASE_URL ?? 'http://localhost:3000'}
           showCreateForm={wantsNewBusiness}
         />
       ) : null}
@@ -167,18 +138,20 @@ export default async function DashboardPage({
 }
 
 function PanelHint({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs leading-relaxed text-muted-foreground">{children}</p>;
+  return <p className="px-1 text-sm leading-relaxed text-muted-foreground">{children}</p>;
 }
 
 async function AutoPanel({ businessId }: { businessId: string }) {
   const reviews = await getAutoRepliedReviews(businessId);
   return (
     <div className="space-y-3">
-      <PanelHint>4.0–5.0★ — drafted and published automatically after the 24-hour hold.</PanelHint>
+      <PanelHint>
+        Happy customers. We wrote and sent the thank-you — nothing for you to do.
+      </PanelHint>
       {reviews.length === 0 ? (
         <EmptyState
-          title="Nothing auto-replied yet"
-          description="4★ and 5★ reviews land here once ingested."
+          title="Nothing here yet"
+          description="When someone leaves a 4 or 5 star review, we reply for you and show it here."
         />
       ) : (
         reviews.map((review) => <AutoReplyCard key={review.id} review={review} />)
@@ -197,11 +170,13 @@ async function ApprovalsPanel({
   const reviews = await getPendingApprovalReviews(businessId);
   return (
     <div className="space-y-3">
-      <PanelHint>3.0–3.9★ — edit the draft if you want, then approve it.</PanelHint>
+      <PanelHint>
+        Mixed reviews. We drafted a reply — read it, change anything you like, then send.
+      </PanelHint>
       {reviews.length === 0 ? (
         <EmptyState
-          title="No drafts waiting"
-          description="Middling reviews arrive here with a draft that needs your sign-off."
+          title="Nothing waiting on you"
+          description="Middling reviews arrive here with a ready-made reply for you to approve."
         />
       ) : (
         reviews.map((review) => (
@@ -224,12 +199,13 @@ async function EscalationsPanel({ businessId }: { businessId: string }) {
   return (
     <div className="space-y-3">
       <PanelHint>
-        1.0–2.9★ and sensitive reviews — no draft is generated, you write the reply.
+        Unhappy or sensitive reviews. We deliberately did not write anything — these deserve your
+        own words.
       </PanelHint>
       {reviews.length === 0 ? (
         <EmptyState
-          title="Nothing needs your attention"
-          description="Low-rated or sensitive reviews appear here."
+          title="Nothing needs you right now"
+          description="Low ratings and anything sensitive land here so a person can respond."
         />
       ) : (
         reviews.map((review) => <EscalationCard key={review.id} review={review} />)

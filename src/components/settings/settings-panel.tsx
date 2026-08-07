@@ -1,42 +1,31 @@
 import { Suspense } from 'react';
-import { ActivityLogCard } from './activity-log';
-import { CronStatusCard } from './cron-status';
+import { AdvancedSettings } from './advanced-settings';
+import { DiagnoseAccess } from './diagnose-access';
 import { FlashMessage } from './flash-message';
 import { GoogleConnectionCard } from './google-connection';
+import { RedirectUriField } from './redirect-uri-field';
 import { BusinessSettingsForm } from '@/components/business/business-settings-form';
 import { CreateBusinessForm } from '@/components/business/create-business-form';
+import { BusinessTechnicalForm } from '@/components/business/business-technical-form';
 import type { ConnectionStatus } from '@/lib/google';
 import type { BusinessDTO } from '@/lib/business';
-import type { ActivityLogDTO, CronRunDTO, LocationDTO } from '@/lib/queries';
+import type { LocationDTO } from '@/lib/queries';
 
-/** The Settings panel of the dashboard, scoped to the selected business. */
+/**
+ * Setup, ordered by how often it is touched: connect once, describe the
+ * organisation, and never open the third section.
+ */
 export function SettingsPanel({
   business,
   businessCount,
   connection,
   locations,
-  runs,
-  logs,
-  scheduler,
-  cronSecretConfigured,
-  baseUrl,
   showCreateForm,
 }: {
   business: BusinessDTO;
   businessCount: number;
   connection: ConnectionStatus;
   locations: LocationDTO[];
-  runs: CronRunDTO[];
-  logs: ActivityLogDTO[];
-  scheduler: {
-    enabled: boolean;
-    started: boolean;
-    ingestExpression: string;
-    publishExpression: string;
-    running: { ingest: boolean; publish: boolean };
-  };
-  cronSecretConfigured: boolean;
-  baseUrl: string;
   showCreateForm: boolean;
 }) {
   return (
@@ -54,16 +43,17 @@ export function SettingsPanel({
         locations={locations}
       />
 
-      <BusinessSettingsForm business={business} canDelete={businessCount > 1} />
+      <BusinessSettingsForm business={business} />
 
-      <CronStatusCard
-        scheduler={scheduler}
-        runs={runs}
-        cronSecretConfigured={cronSecretConfigured}
-        baseUrl={baseUrl}
-      />
-
-      <ActivityLogCard logs={logs} />
+      <AdvancedSettings>
+        <DiagnoseAccess businessId={business.id} />
+        <RedirectUriField
+          businessId={business.id}
+          redirectUri={connection.redirectUri}
+          supported={connection.supportedRedirectUris}
+        />
+        <BusinessTechnicalForm business={business} canDelete={businessCount > 1} />
+      </AdvancedSettings>
     </div>
   );
 }

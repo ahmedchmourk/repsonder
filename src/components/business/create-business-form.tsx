@@ -18,16 +18,16 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { postJson } from '@/lib/client';
 
-const CONTEXT_PLACEHOLDER = `What does the business do? Include anything a reply might need to be accurate, for example:
+const CONTEXT_PLACEHOLDER = `Tell us about the business, the way you'd explain it to a new employee:
 
-• Services offered and what each one involves
-• Prices or price ranges
-• Opening hours and locations
+• What you offer, and what each service involves
+• Prices, or price ranges
+• Opening hours and where you are
 • Booking, refund and cancellation policy
-• Contact channels you're happy to point people to
-• Anything the AI must never promise
+• How customers can reach you
+• Anything you never want promised
 
-The AI may only use facts written here — it will not invent services or prices.`;
+Replies are written only from what you put here — nothing gets invented.`;
 
 const MIN_CONTEXT = 40;
 
@@ -76,8 +76,8 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
         ...(form.llmModel.trim() ? { llmModel: form.llmModel.trim() } : {}),
       });
       toast({
-        title: `${result.name} created`,
-        description: 'Next: connect its Google account to start pulling reviews.',
+        title: `${result.name} added`,
+        description: 'Next: connect its Google account and reviews start arriving.',
         variant: 'success',
       });
       setForm({
@@ -110,10 +110,10 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
             <Building2 className="size-4" aria-hidden />
           </span>
           <div>
-            <CardTitle>{compact ? 'Add another business' : 'Create your first business'}</CardTitle>
+            <CardTitle>{compact ? 'Add another organisation' : 'Add your organisation'}</CardTitle>
             <CardDescription>
-              Each business has its own Google OAuth client, its own LLM key, and its own context.
-              Reviews, drafts and logs are kept completely separate.
+              Each organisation keeps its own reviews, replies and settings, completely separate
+              from the others.
             </CardDescription>
           </div>
         </div>
@@ -123,7 +123,7 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
         <form onSubmit={submit} className="space-y-5">
           <div className="space-y-1.5">
             <Label htmlFor="name" className="micro-label">
-              Business name
+              Organisation name
             </Label>
             <Input
               id="name"
@@ -137,12 +137,12 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label htmlFor="context" className="micro-label">
-                Business context
+                What the organisation does
               </Label>
               <span
                 className={
                   contextTooShort
-                    ? 'text-xs font-semibold text-amber-600 dark:text-amber-400'
+                    ? 'text-xs font-semibold text-amber-600'
                     : 'text-xs tabular-nums text-muted-foreground'
                 }
               >
@@ -159,9 +159,9 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
               required
             />
             <p className="text-xs leading-relaxed text-muted-foreground">
-              This is injected into every reply prompt as the{' '}
-              <strong className="font-semibold text-foreground">only</strong> source of facts the AI
-              may use. The more precise it is, the safer the replies.
+              This is the{' '}
+              <strong className="font-semibold text-foreground">only</strong> thing replies are
+              written from. The more detail you give, the better they sound.
             </p>
           </div>
 

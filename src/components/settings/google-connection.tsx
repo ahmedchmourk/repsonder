@@ -2,20 +2,17 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Link2, Loader2, RefreshCw, Unlink, XCircle } from 'lucide-react';
+import { CheckCircle2, Link2, Loader2, MapPin, RefreshCw, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
-import { AbsoluteTime } from '@/components/time-ago';
-import { DiagnoseAccess } from './diagnose-access';
-import { postJson, putJson } from '@/lib/client';
-import { cn } from '@/lib/utils';
+import { postJson } from '@/lib/client';
+import { friendlySyncProblem } from '@/lib/humanize';
 import type { ConnectionStatus } from '@/lib/google';
 import type { LocationDTO } from '@/lib/queries';
 
+/** Connect the Google account and show which locations Responder is watching. */
 export function GoogleConnectionCard({
   businessId,
   businessName,
@@ -29,34 +26,9 @@ export function GoogleConnectionCard({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [busy, setBusy] = React.useState<'disconnect' | 'sync' | 'connect' | null>(null);
-  const [uri, setUri] = React.useState(status.redirectUri);
+  const [busy, setBusy] = React.useState<'disconnect' | 'sync' | null>(null);
+
   const connectHref = `/api/auth/google/start?businessId=${businessId}`;
-
-  React.useEffect(() => setUri(status.redirectUri), [status.redirectUri]);
-
-  const uriChanged = uri.trim() !== status.redirectUri;
-
-  /**
-   * Saves the typed redirect URI first, then starts the consent flow — the value
-   * used to build the consent URL must be the one Google has registered.
-   */
-  async function saveAndConnect() {
-    setBusy('connect');
-    try {
-      if (uriChanged) {
-        await putJson(`/api/businesses/${businessId}`, { googleRedirectUri: uri.trim() });
-      }
-      window.location.href = connectHref;
-    } catch (err) {
-      toast({
-        title: 'Could not save the redirect URI',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'error',
-      });
-      setBusy(null);
-    }
-  }
 
   async function disconnect() {
     setBusy('disconnect');
@@ -81,12 +53,15 @@ export function GoogleConnectionCard({
       const result = await postJson<{ count: number }>(
         `/api/locations/sync?businessId=${businessId}`,
       );
-      toast({ title: `Synced ${result.count} location(s)`, variant: 'success' });
+      toast({ title: `Found ${result.count} location(s)`, variant: 'success' });
       router.refresh();
     } catch (err) {
+      // Google's own wording is a wall of text; show the short version here and
+      // keep the full detail in Setup → Advanced → Diagnose.
+      const raw = err instanceof Error ? err.message : String(err);
       toast({
-        title: 'Could not sync locations',
-        description: err instanceof Error ? err.message : String(err),
+        title: 'Could not load your locations',
+        description: friendlySyncProblem(raw) ?? raw,
         variant: 'error',
       });
     } finally {
@@ -95,13 +70,15 @@ export function GoogleConnectionCard({
   }
 
   return (
-    <Card>
+    <Card className="soft">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>Google Business Profile</CardTitle>
             <CardDescription>
-              OAuth 2.0 with offline access, using {businessName}&apos;s own client credentials.
+              {status.connected
+                ? `Responder is watching reviews for ${businessName}.`
+                : 'Connect the Google account that manages your business, and reviews start arriving here.'}
             </CardDescription>
           </div>
           {status.connected ? (
@@ -109,94 +86,16 @@ export function GoogleConnectionCard({
               <CheckCircle2 className="size-3" aria-hidden />
               Connected
             </Badge>
-          ) : (
-            <Badge variant="destructive">
-              <XCircle className="size-3" aria-hidden />
-              Not connected
-            </Badge>
-          )}
+          ) : null}
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {status.connected ? (
-          <>
-            <p className="text-sm">
-              <span className="font-semibold">{status.email ?? 'Connected account'}</span>
-              {status.hasRefreshToken ? (
-                <span className="text-muted-foreground"> · refresh token stored (encrypted)</span>
-              ) : (
-                <span className="font-semibold text-red-600 dark:text-red-400">
-                  {' '}
-                  · refresh token missing, reconnect required
-                </span>
-              )}
-            </p>
-
-            <details className="rounded-xl border border-border bg-muted/40 px-3.5 py-2.5">
-              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
-                Token details
-              </summary>
-              <dl className="mt-2.5 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
-                <Row label="Connected at">
-                  {status.connectedAt ? <AbsoluteTime value={status.connectedAt} /> : '—'}
-                </Row>
-                <Row label="Access token expires">
-                  {status.accessTokenExpiresAt ? (
-                    <AbsoluteTime value={status.accessTokenExpiresAt} />
-                  ) : (
-                    '—'
-                  )}
-                </Row>
-                <Row label="Scopes" className="sm:col-span-2">
-                  <span className="break-all font-mono text-xs">{status.scope ?? '—'}</span>
-                </Row>
-              </dl>
-            </details>
-          </>
-        ) : null}
-
-        <div className="space-y-2 rounded-xl border border-border bg-muted/40 p-3.5">
-          <Label htmlFor="redirectUri" className="micro-label">
-            Authorized redirect URI
-          </Label>
-          <Input
-            id="redirectUri"
-            value={uri}
-            onChange={(e) => setUri(e.target.value)}
-            spellCheck={false}
-            autoComplete="off"
-            className="font-mono text-xs"
-            placeholder={status.supportedRedirectUris[0]}
-          />
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Type the URI exactly as it is registered on the OAuth client in Google Cloud. A mismatch
-            is what causes <code className="font-mono">redirect_uri_mismatch</code>. This app answers
-            on both of these:
+          <p className="text-sm text-muted-foreground">
+            Signed in as <span className="font-semibold text-foreground">{status.email}</span>
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {status.supportedRedirectUris.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setUri(option)}
-                className={cn(
-                  'rounded-md border px-2 py-1 font-mono text-[11px] transition-colors',
-                  uri.trim() === option
-                    ? 'border-primary/30 bg-primary/10 text-primary'
-                    : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {option.replace(/^https?:\/\/[^/]+/, '')}
-              </button>
-            ))}
-          </div>
-          {uriChanged ? (
-            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-              Unsaved — it is saved automatically when you connect.
-            </p>
-          ) : null}
-        </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2">
           {status.connected ? (
@@ -207,15 +106,7 @@ export function GoogleConnectionCard({
                 ) : (
                   <RefreshCw aria-hidden />
                 )}
-                Sync locations
-              </Button>
-              <Button variant="secondary" onClick={saveAndConnect} disabled={busy !== null} size="sm">
-                {busy === 'connect' ? (
-                  <Loader2 className="animate-spin" aria-hidden />
-                ) : (
-                  <Link2 aria-hidden />
-                )}
-                Re-authorize
+                Refresh locations
               </Button>
               <Button variant="ghost" onClick={disconnect} disabled={busy !== null} size="sm">
                 {busy === 'disconnect' ? (
@@ -227,62 +118,34 @@ export function GoogleConnectionCard({
               </Button>
             </>
           ) : (
-            <Button onClick={saveAndConnect} disabled={busy !== null} size="sm">
-              {busy === 'connect' ? (
-                <Loader2 className="animate-spin" aria-hidden />
-              ) : (
+            <Button asChild>
+              <a href={connectHref}>
                 <Link2 aria-hidden />
-              )}
-              {uriChanged ? 'Save URI & connect' : 'Connect Google account'}
+                Connect Google account
+              </a>
             </Button>
           )}
         </div>
 
-        {status.connected ? <DiagnoseAccess businessId={businessId} /> : null}
-
-        <div>
-          <p className="micro-label">Locations ({locations.length})</p>
-          {locations.length === 0 ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              None yet. Connect the account and press “Sync locations”.
-            </p>
-          ) : (
-            <ul className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border">
-              {locations.map((loc) => (
-                <li
-                  key={loc.id}
-                  className="flex flex-wrap items-center justify-between gap-2 bg-card px-3.5 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{loc.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {loc.address ?? loc.googleName}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">{loc.reviewCount} reviews</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {locations.length > 0 ? (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+            {locations.map((loc) => (
+              <li key={loc.id} className="flex items-center gap-3 bg-card px-4 py-3">
+                <MapPin className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{loc.title}</p>
+                  {loc.address ? (
+                    <p className="truncate text-xs text-muted-foreground">{loc.address}</p>
+                  ) : null}
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {loc.reviewCount} review{loc.reviewCount === 1 ? '' : 's'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-function Row({
-  label,
-  children,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <dt className="micro-label">{label}</dt>
-      <dd className="mt-1">{children}</dd>
-    </div>
   );
 }

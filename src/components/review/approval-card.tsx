@@ -2,58 +2,60 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Check, Clock, Loader2, RefreshCw, Send, X } from 'lucide-react';
+import { Check, Loader2, RefreshCw, Undo2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/toast';
 import { ReviewSummary } from './review-summary';
-import { TimeAgo } from '@/components/time-ago';
 import { formatUtc } from '@/lib/format';
 import { postJson } from '@/lib/client';
 import type { ReviewDTO } from '@/lib/queries';
 
 /**
- * A 3.0–3.9★ review with its AI draft. The draft is editable inline; approving
- * either publishes immediately (if the 24h delay has already elapsed) or queues
- * the reply for the publisher.
+ * A middling review with a ready-made reply. Editable in place; approving either
+ * sends it or queues it until the 24-hour hold has passed.
  */
-export function ApprovalCard({ review, earliestPublishAt }: { review: ReviewDTO; earliestPublishAt: string }) {
+export function ApprovalCard({
+  review,
+  earliestPublishAt,
+}: {
+  review: ReviewDTO;
+  earliestPublishAt: string;
+}) {
   const router = useRouter();
   const { toast } = useToast();
 
   const original = review.draft?.content ?? '';
   const [content, setContent] = React.useState(original);
-  const [busy, setBusy] = React.useState<'approve' | 'publish' | 'regen' | 'escalate' | null>(null);
+  const [busy, setBusy] = React.useState<'approve' | 'regen' | 'escalate' | null>(null);
 
   const dirty = content.trim() !== original.trim();
-  const delayElapsed = Date.now() >= new Date(earliestPublishAt).getTime();
   const textareaId = `draft-${review.id}`;
 
-  async function approve(publishNow: boolean) {
+  async function approve() {
     if (!content.trim()) {
-      toast({ title: 'Nothing to publish', description: 'The reply is empty.', variant: 'error' });
+      toast({ title: 'The reply is empty', variant: 'error' });
       return;
     }
-    setBusy(publishNow ? 'publish' : 'approve');
+    setBusy('approve');
     try {
       const result = await postJson<{ published: boolean; scheduledFor: string | null }>(
         `/api/reviews/${review.id}/approve`,
-        { content, publishNow },
+        { content },
       );
       toast({
-        title: result.published ? 'Reply published to Google' : 'Approved and queued',
+        title: result.published ? 'Reply sent' : 'Approved',
         description: result.published
-          ? `Sent to ${review.reviewerName}'s review.`
-          : `Held until ${formatUtc(result.scheduledFor ?? earliestPublishAt)} so it doesn't look automated.`,
+          ? `${review.reviewerName} will see it on Google shortly.`
+          : `It will go out on ${formatUtc(result.scheduledFor ?? earliestPublishAt)} so it doesn't look automated.`,
         variant: 'success',
       });
       router.refresh();
     } catch (err) {
       toast({
-        title: 'Could not approve',
+        title: 'Could not send',
         description: err instanceof Error ? err.message : String(err),
         variant: 'error',
       });
@@ -65,15 +67,12 @@ export function ApprovalCard({ review, earliestPublishAt }: { review: ReviewDTO;
   async function regenerate() {
     setBusy('regen');
     try {
-      const result = await postJson<{ content: string; version: number }>(
-        `/api/reviews/${review.id}/regenerate`,
-      );
+      const result = await postJson<{ content: string }>(`/api/reviews/${review.id}/regenerate`);
       setContent(result.content);
-      toast({ title: `New draft generated (v${result.version})`, variant: 'success' });
-      router.refresh();
+      toast({ title: 'New version written', variant: 'success' });
     } catch (err) {
       toast({
-        title: 'Could not regenerate',
+        title: 'Could not rewrite',
         description: err instanceof Error ? err.message : String(err),
         variant: 'error',
       });
@@ -86,13 +85,13 @@ export function ApprovalCard({ review, earliestPublishAt }: { review: ReviewDTO;
     setBusy('escalate');
     try {
       await postJson(`/api/reviews/${review.id}/escalate`, {
-        reason: 'Operator sent this to human handling from the approvals queue',
+        reason: 'Moved for a human reply from the dashboard',
       });
-      toast({ title: 'Moved to Escalations', variant: 'success' });
+      toast({ title: 'Moved to “Needs a person”', variant: 'success' });
       router.refresh();
     } catch (err) {
       toast({
-        title: 'Could not escalate',
+        title: 'Could not move it',
         description: err instanceof Error ? err.message : String(err),
         variant: 'error',
       });
@@ -102,93 +101,51 @@ export function ApprovalCard({ review, earliestPublishAt }: { review: ReviewDTO;
   }
 
   return (
-    <Card className="hover:border-primary/40">
+    <Card className="soft">
       <CardHeader className="pb-4">
-        <ReviewSummary review={review} showStatus={false} />
+        <ReviewSummary review={review} />
       </CardHeader>
 
-      <Separator />
-
-      <CardContent className="space-y-3 pt-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor={textareaId} className="micro-label">
-            AI draft reply
-          </Label>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {review.draft
-              ? `${review.draft.provider ?? 'llm'} · ${review.draft.model ?? 'unknown model'} · v${review.draft.version}${review.draft.humanEdited ? ' · edited' : ''}`
-              : 'No draft on file'}
-          </span>
-        </div>
-
+      <CardContent className="space-y-2.5 border-t border-border pt-4">
+        <Label htmlFor={textareaId} className="micro-label">
+          Suggested reply
+        </Label>
         <Textarea
           id={textareaId}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={5}
           className="resize-y"
-          placeholder="Write the reply that should be published to Google…"
-          aria-describedby={`${textareaId}-help`}
         />
-
-        <p
-          id={`${textareaId}-help`}
-          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-        >
-          <span className="tabular-nums">{content.trim().length} characters</span>
-          {dirty ? (
-            <span className="font-semibold text-amber-600 dark:text-amber-400">Unsaved edits</span>
-          ) : null}
-          <span className="inline-flex items-center gap-1">
-            <Clock className="size-3" aria-hidden />
-            {delayElapsed ? (
-              <>24h delay already elapsed — approving publishes immediately</>
-            ) : (
-              <>
-                Earliest publish <TimeAgo value={earliestPublishAt} />
-              </>
-            )}
-          </span>
-        </p>
+        {dirty ? <p className="text-xs font-semibold text-amber-700">Edited</p> : null}
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2 pt-1">
-        <Button onClick={() => approve(false)} disabled={busy !== null}>
+        <Button onClick={approve} disabled={busy !== null}>
           {busy === 'approve' ? (
             <Loader2 className="animate-spin" aria-hidden />
           ) : (
             <Check aria-hidden />
           )}
-          Approve &amp; Publish
+          Approve &amp; send
         </Button>
 
-        {!delayElapsed ? (
-          <Button variant="outline" onClick={() => approve(true)} disabled={busy !== null}>
-            {busy === 'publish' ? (
-              <Loader2 className="animate-spin" aria-hidden />
-            ) : (
-              <Send aria-hidden />
-            )}
-            Publish now (override delay)
-          </Button>
-        ) : null}
-
-        <Button variant="outline" onClick={regenerate} disabled={busy !== null}>
+        <Button variant="secondary" onClick={regenerate} disabled={busy !== null}>
           {busy === 'regen' ? (
             <Loader2 className="animate-spin" aria-hidden />
           ) : (
             <RefreshCw aria-hidden />
           )}
-          Regenerate
+          Write another
         </Button>
 
         <Button variant="ghost" onClick={escalate} disabled={busy !== null}>
           {busy === 'escalate' ? (
             <Loader2 className="animate-spin" aria-hidden />
           ) : (
-            <AlertTriangle aria-hidden />
+            <UserRound aria-hidden />
           )}
-          Needs a human
+          I&apos;ll handle this myself
         </Button>
 
         {dirty ? (
@@ -198,8 +155,8 @@ export function ApprovalCard({ review, earliestPublishAt }: { review: ReviewDTO;
             disabled={busy !== null}
             className="ml-auto"
           >
-            <X aria-hidden />
-            Revert edits
+            <Undo2 aria-hidden />
+            Undo edits
           </Button>
         ) : null}
       </CardFooter>

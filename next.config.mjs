@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // `instrumentation.ts` boots the in-process node-cron scheduler.
+  // Self-contained server bundle for the Docker image used by Coolify.
+  output: 'standalone',
   serverExternalPackages: [
     'node-cron',
     '@prisma/client',

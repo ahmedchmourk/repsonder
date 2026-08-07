@@ -2,20 +2,19 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { CircleSlash, Loader2, Send, ShieldAlert } from 'lucide-react';
+import { CircleSlash, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/toast';
 import { ReviewSummary } from './review-summary';
 import { postJson } from '@/lib/client';
 import type { ReviewDTO } from '@/lib/queries';
 
 /**
- * A 1.0–2.9★ or sensitive review. No AI draft exists by design — the composer
- * starts empty and whatever the human writes is published immediately.
+ * An unhappy or sensitive review. No draft is offered on purpose — whatever you
+ * write is published to Google as-is.
  */
 export function EscalationCard({ review }: { review: ReviewDTO }) {
   const router = useRouter();
@@ -33,16 +32,12 @@ export function EscalationCard({ review }: { review: ReviewDTO }) {
     setBusy('send');
     try {
       await postJson(`/api/reviews/${review.id}/reply`, { content });
-      toast({
-        title: 'Reply published to Google',
-        description: `Sent to ${review.reviewerName}'s ${review.starRating}★ review.`,
-        variant: 'success',
-      });
+      toast({ title: 'Reply sent', variant: 'success' });
       setContent('');
       router.refresh();
     } catch (err) {
       toast({
-        title: 'Could not publish',
+        title: 'Could not send',
         description: err instanceof Error ? err.message : String(err),
         variant: 'error',
       });
@@ -54,9 +49,7 @@ export function EscalationCard({ review }: { review: ReviewDTO }) {
   async function dismiss() {
     setBusy('dismiss');
     try {
-      await postJson(`/api/reviews/${review.id}/dismiss`, {
-        reason: 'Handled offline — no public reply',
-      });
+      await postJson(`/api/reviews/${review.id}/dismiss`, { reason: 'Handled outside Responder' });
       toast({ title: 'Marked as handled', variant: 'success' });
       router.refresh();
     } catch (err) {
@@ -71,29 +64,12 @@ export function EscalationCard({ review }: { review: ReviewDTO }) {
   }
 
   return (
-    <Card className={review.sensitive ? 'border-red-500/30' : 'hover:border-primary/40'}>
+    <Card className={review.sensitive ? 'soft border-red-200' : 'soft'}>
       <CardHeader className="pb-4">
-        <ReviewSummary review={review} showStatus />
+        <ReviewSummary review={review} />
       </CardHeader>
 
-      <Separator />
-
-      <CardContent className="space-y-3 pt-5">
-        <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/60 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-          <ShieldAlert className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-          <span>
-            No AI reply was generated for this review —{' '}
-            {review.sensitive ? 'it was flagged as sensitive' : 'it is rated below 3.0★'}. Anything
-            you write here is published to Google as-is, immediately.
-          </span>
-        </div>
-
-        {review.lastError ? (
-          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
-            Last error: {review.lastError}
-          </p>
-        ) : null}
-
+      <CardContent className="space-y-2.5 border-t border-border pt-4">
         <Label htmlFor={textareaId} className="micro-label">
           Your reply
         </Label>
@@ -102,17 +78,17 @@ export function EscalationCard({ review }: { review: ReviewDTO }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={5}
-          placeholder="Write a considered, human response. Acknowledge the issue, avoid admitting legal fault, and offer a private channel."
+          placeholder="Acknowledge what went wrong, keep it calm, and offer to sort it out privately."
         />
-        <p className="text-xs tabular-nums text-muted-foreground">
-          {content.trim().length} characters
+        <p className="text-xs text-muted-foreground">
+          This goes straight to Google exactly as written.
         </p>
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2 pt-1">
         <Button onClick={send} disabled={busy !== null || !content.trim()}>
           {busy === 'send' ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}
-          Publish reply
+          Send reply
         </Button>
         <Button variant="ghost" onClick={dismiss} disabled={busy !== null}>
           {busy === 'dismiss' ? (
@@ -120,7 +96,7 @@ export function EscalationCard({ review }: { review: ReviewDTO }) {
           ) : (
             <CircleSlash aria-hidden />
           )}
-          Handled offline — no reply
+          Already handled
         </Button>
       </CardFooter>
     </Card>

@@ -80,7 +80,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               if (!open) dismiss(item.id);
             }}
             className={cn(
-              'glass-card pointer-events-auto flex w-full items-start gap-3 rounded-xl border border-border p-4 shadow-lg',
+              'glass-card pointer-events-auto flex w-full items-start gap-3 rounded-xl border border-border p-4 shadow-xl',
               'data-[state=open]:animate-in data-[state=open]:slide-in-from-right-4',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-80',
             )}

@@ -1,22 +1,57 @@
+import Image from 'next/image';
 import Link from 'next/link';
-import { MessageSquareReply } from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { LogOut } from 'lucide-react';
+import { BusinessSwitcher } from '@/components/business/business-switcher';
+import type { BusinessDTO } from '@/lib/business';
 
 /**
- * Deliberately minimal: navigation lives in the dashboard's own view switcher,
- * so the header only carries branding and the theme toggle.
+ * Branding, the organisation picker and sign-out. All other navigation lives in
+ * the page, so there is only ever one place to look.
  */
-export function SiteHeader() {
+export function SiteHeader({
+  businesses = [],
+  currentId = null,
+  userName = null,
+}: {
+  businesses?: BusinessDTO[];
+  currentId?: string | null;
+  userName?: string | null;
+}) {
   return (
     <header className="glass sticky top-0 z-50 border-b border-border">
-      <div className="shell flex h-14 items-center justify-between gap-4">
-        <Link href="/" className="group flex shrink-0 items-center gap-2.5 rounded-xl">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:scale-105">
-            <MessageSquareReply className="size-4" aria-hidden />
-          </span>
-          <span className="font-heading text-base font-extrabold tracking-tight">Responder</span>
+      <div className="shell flex h-16 items-center justify-between gap-4">
+        <Link href="/" aria-label="Responder — home" className="shrink-0 rounded-lg">
+          <Image
+            src="/logo.png"
+            alt="Responder by Octicode"
+            width={364}
+            height={63}
+            priority
+            className="h-6 w-auto sm:h-7"
+          />
         </Link>
-        <ThemeToggle />
+
+        <div className="flex items-center gap-2">
+          {businesses.length > 0 ? (
+            <BusinessSwitcher businesses={businesses} currentId={currentId} />
+          ) : null}
+
+          {userName ? (
+            <span className="hidden text-sm text-muted-foreground sm:inline">{userName}</span>
+          ) : null}
+
+          {/* A plain form post, so sign-out works without JavaScript. */}
+          <form action="/api/auth/logout" method="post">
+            <button
+              type="submit"
+              title="Sign out"
+              aria-label="Sign out"
+              className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="size-4" aria-hidden />
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   );

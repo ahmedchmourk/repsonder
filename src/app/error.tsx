@@ -18,12 +18,12 @@ export default function Error({ error, reset }: { error: Error; reset: () => voi
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-500">
           <TriangleAlert className="size-5" aria-hidden />
         </span>
-        <h1 className="font-heading text-xl font-bold tracking-tight text-red-700 dark:text-red-400">
+        <h1 className="font-heading text-xl font-bold tracking-tight text-red-700">
           Something went wrong
         </h1>
       </div>
 
-      <p className="break-words text-sm leading-relaxed text-red-700/90 dark:text-red-300/90">
+      <p className="break-words text-sm leading-relaxed text-red-700/90">
         {error.message}
       </p>
 

@@ -5,16 +5,27 @@
 // reviews, locations, logs and cron runs hang off a Business, so several
 // businesses can be managed side by side and switched in the UI.
 //
-// SQLite has no native enums, so those values are stored as strings; the allowed
-// set lives in src/lib/constants.ts.
+// Enum-like columns are plain strings; the allowed values live in
+// src/lib/constants.ts.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// Someone who can sign in to the dashboard.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  /// scrypt hash — see src/lib/password.ts
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 /// A business whose Google reviews Responder answers.

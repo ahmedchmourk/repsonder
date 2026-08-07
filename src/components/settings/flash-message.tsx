@@ -42,8 +42,8 @@ export function FlashMessage() {
         className={cn(
           'pt-2 text-sm leading-relaxed',
           isError
-            ? 'text-red-700 dark:text-red-400'
-            : 'text-emerald-700 dark:text-emerald-400',
+            ? 'text-red-700'
+            : 'text-emerald-700',
         )}
       >
         {error ?? message ?? 'Google account connected.'}

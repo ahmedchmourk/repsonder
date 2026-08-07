@@ -6,6 +6,7 @@ import { Loader2, Play } from 'lucide-react';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { postJson } from '@/lib/client';
+import { friendlySyncProblem } from '@/lib/humanize';
 
 type IngestResponse = {
   job: string;
@@ -50,9 +51,10 @@ export function RunJobButton({
       });
       router.refresh();
     } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
       toast({
-        title: `Could not run ${job}`,
-        description: err instanceof Error ? err.message : String(err),
+        title: job === 'ingest' ? 'Could not check for reviews' : 'Could not send replies',
+        description: friendlySyncProblem(raw) ?? raw,
         variant: 'error',
       });
     } finally {

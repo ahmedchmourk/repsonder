@@ -1,25 +1,26 @@
 import { cn } from '@/lib/utils';
 
-export type Stat = { label: string; value: string | number; tone?: 'default' | 'warning' | 'danger' };
+export type Stat = {
+  label: string;
+  value: string | number;
+  tone?: 'default' | 'warning' | 'danger';
+};
 
 const TONES = {
   default: '',
-  warning: 'text-amber-600 dark:text-amber-400',
-  danger: 'text-red-600 dark:text-red-400',
+  warning: 'text-amber-700',
+  danger: 'text-red-700',
 } as const;
 
-/**
- * One quiet bordered strip instead of a row of cards — the numbers are context,
- * not the main event, so they shouldn't compete with the review list.
- */
+/** A calm summary row — context, not the main event. */
 export function StatStrip({ stats }: { stats: Stat[] }) {
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-4">
+    <dl className="soft grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-4">
       {stats.map((stat, i) => (
         <div
           key={stat.label}
           className={cn(
-            'px-4 py-3',
+            'px-4 py-3.5',
             i % 2 !== 0 && 'border-l border-border',
             i >= 2 && 'border-t border-border',
             'sm:border-t-0',
@@ -29,7 +30,9 @@ export function StatStrip({ stats }: { stats: Stat[] }) {
           <dt className="micro-label">{stat.label}</dt>
           <dd
             className={cn(
-              'mt-1 font-heading text-xl font-bold tracking-tight tabular-nums',
+              // Body font on purpose: Syne's zero reads as a letter O, which is
+              // the wrong trade-off for a panel that is mostly numbers.
+              'mt-1 text-2xl font-bold tracking-tight tabular-nums',
               TONES[stat.tone ?? 'default'],
             )}
           >

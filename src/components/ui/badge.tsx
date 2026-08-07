@@ -2,23 +2,18 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-/**
- * OctiScraper's badge idiom: a tinted `/10` background with a matching `/20`
- * border, which reads correctly in both light and dark mode without needing
- * separate dark: overrides for the fill.
- */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors',
+  'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold',
   {
     variants: {
       variant: {
-        default: 'border-primary/20 bg-primary/10 text-primary',
-        secondary: 'border-border bg-secondary text-secondary-foreground',
-        outline: 'border-border bg-transparent text-muted-foreground',
-        success: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-        warning: 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-        destructive: 'border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400',
-        info: 'border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+        default: 'bg-primary text-primary-foreground',
+        secondary: 'bg-muted text-muted-foreground',
+        outline: 'border border-border text-muted-foreground',
+        success: 'bg-emerald-50 text-emerald-700',
+        warning: 'bg-amber-50 text-amber-700',
+        destructive: 'bg-red-50 text-red-700',
+        info: 'bg-slate-100 text-slate-700',
       },
     },
     defaultVariants: { variant: 'default' },

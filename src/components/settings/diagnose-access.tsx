@@ -107,9 +107,9 @@ export function DiagnoseAccess({ businessId }: { businessId: string }) {
             <p
               className={cn(
                 'font-heading text-sm font-bold tracking-tight',
-                overall.tone === 'ok' && 'text-emerald-700 dark:text-emerald-400',
-                overall.tone === 'warn' && 'text-amber-700 dark:text-amber-400',
-                overall.tone === 'bad' && 'text-red-700 dark:text-red-400',
+                overall.tone === 'ok' && 'text-emerald-700',
+                overall.tone === 'warn' && 'text-amber-700',
+                overall.tone === 'bad' && 'text-red-700',
               )}
             >
               {overall.heading}

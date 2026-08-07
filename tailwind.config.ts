@@ -13,7 +13,8 @@ import animate from 'tailwindcss-animate';
  * (`bg-primary/90`, `border-primary/40`) keep working through the CSS variable.
  */
 const config: Config = {
-  darkMode: 'class',
+  // Light only — the wordmark is solid black and the palette is built for it.
+  darkMode: [],
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -56,10 +57,6 @@ const config: Config = {
           DEFAULT: 'oklch(var(--card) / <alpha-value>)',
           foreground: 'oklch(var(--card-foreground) / <alpha-value>)',
         },
-        brand: {
-          lime: 'oklch(var(--brand-lime) / <alpha-value>)',
-          black: 'oklch(var(--brand-black) / <alpha-value>)',
-        },
       },
       borderRadius: {
         sm: 'calc(var(--radius) * 0.6)',
@@ -73,14 +70,9 @@ const config: Config = {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
-        pulseGlow: {
-          '0%, 100%': { boxShadow: '0 0 15px oklch(0.68 0.19 127.2 / 0.3)' },
-          '50%': { boxShadow: '0 0 25px oklch(0.68 0.19 127.2 / 0.6)' },
-        },
       },
       animation: {
         shimmer: 'shimmer 1.8s infinite',
-        'pulse-glow': 'pulseGlow 2s infinite ease-in-out',
       },
     },
   },

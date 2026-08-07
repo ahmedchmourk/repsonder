@@ -5,10 +5,7 @@ export function StarRating({ rating, className }: { rating: number; className?: 
   const rounded = Math.round(rating);
   return (
     <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5',
-        className,
-      )}
+      className={cn('inline-flex shrink-0 items-center gap-1', className)}
       aria-label={`${rating.toFixed(1)} out of 5 stars`}
     >
       <span className="flex" aria-hidden>
@@ -16,14 +13,11 @@ export function StarRating({ rating, className }: { rating: number; className?: 
           <Star
             key={i}
             className={cn(
-              'size-3',
-              i <= rounded ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-amber-400/30',
+              'size-3.5',
+              i <= rounded ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200',
             )}
           />
         ))}
-      </span>
-      <span className="text-[11px] font-bold tabular-nums text-amber-600 dark:text-amber-400">
-        {rating.toFixed(1)}
       </span>
     </span>
   );
