@@ -56,7 +56,11 @@ export async function signIn(
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // Keyed to the deployment's own scheme rather than NODE_ENV: a production
+    // build served over plain HTTP (IP:port, or before TLS is issued) would
+    // otherwise set a Secure cookie the browser silently discards, making login
+    // appear to succeed and then bounce straight back to the login screen.
+    secure: (process.env.APP_BASE_URL ?? '').startsWith('https://'),
     path: '/',
     maxAge: SESSION_MAX_AGE,
   });

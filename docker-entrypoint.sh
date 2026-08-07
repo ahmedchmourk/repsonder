@@ -19,7 +19,8 @@ done
 
 # Idempotent: a no-op when the schema already matches.
 echo "[responder] applying database schema…"
-node node_modules/prisma/build/index.js db push --schema=./prisma/schema.prisma --skip-generate
+node /prisma-cli/node_modules/prisma/build/index.js db push \
+  --schema=./prisma/schema.prisma --skip-generate
 
 echo "[responder] starting server on ${HOSTNAME:-0.0.0.0}:${PORT:-3000}"
 exec "$@"
