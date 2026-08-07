@@ -61,7 +61,28 @@ Optional:
 > **Keep `ENCRYPTION_KEY` safe and unchanged.** Changing it makes every stored
 > Google token and API key unreadable, and each organisation must be reconnected.
 
-## 4. Sign-in accounts
+## 4. Seeding the first organisation (optional)
+
+Set these and a brand-new deployment comes up with OctiGrowth already configured,
+instead of an empty onboarding form:
+
+| Variable | Value |
+| --- | --- |
+| `SEED_GOOGLE_CLIENT_ID` | The OAuth client ID |
+| `SEED_GOOGLE_CLIENT_SECRET` | The OAuth client secret |
+| `SEED_LLM_API_KEY` | The Gemini (or OpenAI) key |
+
+Optional overrides: `SEED_BUSINESS_NAME`, `SEED_BUSINESS_CONTEXT`,
+`SEED_LLM_PROVIDER` (`gemini` by default), `SEED_LLM_MODEL`.
+
+The description defaults to the OctiGrowth text in `src/lib/seed-business.ts` —
+edit it there, or override it with `SEED_BUSINESS_CONTEXT`.
+
+Seeding runs on the first successful sign-in and **only when no organisation
+exists**, so renaming or deleting it is permanent. The Google account still has
+to be connected once from Setup: a refresh token cannot be seeded.
+
+## 5. Sign-in accounts
 
 On the first login attempt the app creates three accounts, each with
 `SEED_PASSWORD`:
@@ -73,7 +94,7 @@ On the first login attempt the app creates three accounts, each with
 Existing accounts are never overwritten, so changing a password in the database
 survives restarts. Passwords are stored as scrypt hashes, never plaintext.
 
-## 5. Update the Google OAuth client
+## 6. Update the Google OAuth client
 
 Once you know the public URL, add it in Google Cloud → **Clients** → your OAuth client:
 
@@ -83,7 +104,7 @@ Once you know the public URL, add it in Google Cloud → **Clients** → your OA
 Then set the same URI in the app under **Setup → Advanced settings → Authorized
 redirect URI**. It must match Google exactly, or you get `redirect_uri_mismatch`.
 
-## 6. Deploy
+## 7. Deploy
 
 Hit **Deploy**. On boot you'll see:
 
