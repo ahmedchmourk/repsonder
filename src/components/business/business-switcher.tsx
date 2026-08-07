@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Check, ChevronDown, Loader2, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { Building2, Check, ChevronDown, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { postJson } from '@/lib/client';
 import { cn } from '@/lib/utils';
 import type { BusinessDTO } from '@/lib/business';
 
-/** Picks which business the dashboard is pointed at. */
+/** Picks which organisation the dashboard is pointed at, and can remove one. */
 export function BusinessSwitcher({
   businesses,
   currentId,
@@ -52,7 +53,40 @@ export function BusinessSwitcher({
       router.refresh();
     } catch (err) {
       toast({
-        title: 'Could not switch business',
+        title: 'Could not switch organisation',
+        description: err instanceof Error ? err.message : String(err),
+        variant: 'error',
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove(business: BusinessDTO) {
+    // Typing the name is deliberate friction — this also deletes every review.
+    const typed = window.prompt(
+      `Delete "${business.name}"?\n\nThis also removes its ${business.reviewCount} review(s) and cannot be undone.\n\nType the name to confirm:`,
+    );
+    if (typed === null) return;
+    if (typed.trim() !== business.name) {
+      toast({ title: 'Name did not match — nothing was deleted', variant: 'error' });
+      return;
+    }
+
+    setBusy(business.id);
+    try {
+      const res = await fetch(`/api/businesses/${business.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `Request failed (${res.status})`);
+      }
+      toast({ title: `${business.name} deleted`, variant: 'success' });
+      setOpen(false);
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      toast({
+        title: 'Could not delete',
         description: err instanceof Error ? err.message : String(err),
         variant: 'error',
       });
@@ -70,55 +104,77 @@ export function BusinessSwitcher({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-9 max-w-[15rem] items-center gap-2 rounded-xl border border-border bg-secondary px-3 text-sm font-semibold shadow-sm transition-all hover:bg-muted"
+        className="flex h-9 max-w-[13rem] items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-semibold transition-colors hover:bg-muted"
       >
-        <Building2 className="size-4 shrink-0 text-primary" aria-hidden />
-        <span className="truncate">{current?.name ?? 'Select business'}</span>
+        <Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="truncate">{current?.name ?? 'Select organisation'}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 
       {open ? (
         <div
           role="listbox"
-          className="absolute right-0 z-50 mt-1.5 w-72 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-lg"
+          className="soft absolute right-0 z-50 mt-1.5 w-80 overflow-hidden rounded-xl border border-border bg-popover p-1.5"
         >
           {businesses.map((b) => (
-            <button
+            <div
               key={b.id}
-              type="button"
-              role="option"
-              aria-selected={b.id === currentId}
-              onClick={() => select(b.id)}
-              disabled={busy !== null}
               className={cn(
-                'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors disabled:opacity-50',
-                b.id === currentId ? 'bg-muted font-semibold' : 'hover:bg-muted',
+                'flex items-center gap-1 rounded-lg',
+                b.id === currentId ? 'bg-muted' : 'hover:bg-muted',
               )}
             >
-              <span className="flex size-4 shrink-0 items-center justify-center">
-                {busy === b.id ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                ) : b.id === currentId ? (
-                  <Check className="size-3.5 text-primary" aria-hidden />
-                ) : null}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{b.name}</span>
-                <span className="block truncate text-xs font-normal text-muted-foreground">
-                  {b.connected ? `${b.reviewCount} reviews` : 'not connected'}
-                  {b.active ? '' : ' · paused'}
+              <button
+                type="button"
+                role="option"
+                aria-selected={b.id === currentId}
+                onClick={() => select(b.id)}
+                disabled={busy !== null}
+                className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-sm disabled:opacity-50"
+              >
+                <span className="flex size-4 shrink-0 items-center justify-center">
+                  {busy === b.id ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : b.id === currentId ? (
+                    <Check className="size-3.5 text-primary" aria-hidden />
+                  ) : null}
                 </span>
-              </span>
-            </button>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn('block truncate', b.id === currentId && 'font-semibold')}
+                  >
+                    {b.name}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {b.connected
+                      ? `${b.reviewCount} review${b.reviewCount === 1 ? '' : 's'}`
+                      : 'not connected'}
+                    {b.active ? '' : ' · paused'}
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => remove(b)}
+                disabled={busy !== null}
+                title={`Delete ${b.name}`}
+                aria-label={`Delete ${b.name}`}
+                className="mr-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+              </button>
+            </div>
           ))}
 
-          <a
-            href="/?view=settings&new=1"
+          <Link
+            href="/new"
+            onClick={() => setOpen(false)}
             className="mt-1 flex items-center gap-2 rounded-lg border-t border-border px-2.5 py-2 pt-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             <Plus className="size-3.5" aria-hidden />
-            Add a business
-          </a>
+            Add an organisation
+          </Link>
         </div>
       ) : null}
     </div>

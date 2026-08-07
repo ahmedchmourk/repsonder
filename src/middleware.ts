@@ -35,7 +35,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const login = new URL('/login', request.url);
-  if (pathname !== '/') login.searchParams.set('next', `${pathname}${search}`);
+  // Also preserve a query-only destination such as `/?view=settings`, which the
+  // OAuth callback redirects to — checking the pathname alone dropped it.
+  if (pathname !== '/' || search) login.searchParams.set('next', `${pathname}${search}`);
   return NextResponse.redirect(login);
 }
 

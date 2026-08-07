@@ -6,7 +6,7 @@ import { RunJobButton } from '@/components/run-job-button';
 import { SetupNotice } from '@/components/setup-notice';
 import { StatStrip } from '@/components/stat-strip';
 import { ViewSwitcher } from '@/components/view-switcher';
-import { CreateBusinessForm } from '@/components/business/create-business-form';
+import { redirect } from 'next/navigation';
 import { SettingsPanel } from '@/components/settings/settings-panel';
 import { getConnectionStatus } from '@/lib/google';
 import { computeScheduledFor } from '@/lib/pipeline';
@@ -27,31 +27,16 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string | string[]; new?: string | string[] }>;
+  searchParams: Promise<{ view?: string | string[] }>;
 }) {
   const params = await searchParams;
   const view = parseView(params.view);
-  const wantsNewBusiness = params.new === '1';
 
   const [business, businesses] = await Promise.all([getCurrentBusiness(), listBusinesses()]);
 
-  // Nothing exists yet — the only thing to do is add an organisation.
-  if (!business) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div className="text-center">
-          <h1 className="font-heading text-3xl font-extrabold tracking-tight">
-            Let&apos;s get you set up
-          </h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Add the organisation whose Google reviews you want handled. Once it&apos;s connected,
-            Responder writes the easy replies for you and flags the ones that need you.
-          </p>
-        </div>
-        <CreateBusinessForm />
-      </div>
-    );
-  }
+  // Nothing exists yet — send them to the dedicated add-organisation page rather
+  // than embedding the form here.
+  if (!business) redirect('/new');
 
   const businessId = business.id;
   const currentDto = businesses.find((b) => b.id === businessId)!;
@@ -130,7 +115,6 @@ export default async function DashboardPage({
           businessCount={businesses.length}
           connection={connection}
           locations={locations}
-          showCreateForm={wantsNewBusiness}
         />
       ) : null}
     </div>

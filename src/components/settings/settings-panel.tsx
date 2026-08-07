@@ -5,7 +5,6 @@ import { FlashMessage } from './flash-message';
 import { GoogleConnectionCard } from './google-connection';
 import { RedirectUriField } from './redirect-uri-field';
 import { BusinessSettingsForm } from '@/components/business/business-settings-form';
-import { CreateBusinessForm } from '@/components/business/create-business-form';
 import { BusinessTechnicalForm } from '@/components/business/business-technical-form';
 import type { ConnectionStatus } from '@/lib/google';
 import type { BusinessDTO } from '@/lib/business';
@@ -20,21 +19,17 @@ export function SettingsPanel({
   businessCount,
   connection,
   locations,
-  showCreateForm,
 }: {
   business: BusinessDTO;
   businessCount: number;
   connection: ConnectionStatus;
   locations: LocationDTO[];
-  showCreateForm: boolean;
 }) {
   return (
     <div className="space-y-4">
       <Suspense fallback={null}>
         <FlashMessage />
       </Suspense>
-
-      {showCreateForm ? <CreateBusinessForm compact /> : null}
 
       <GoogleConnectionCard
         businessId={business.id}

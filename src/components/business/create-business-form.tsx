@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,8 +31,11 @@ Replies are written only from what you put here — nothing gets invented.`;
 
 const MIN_CONTEXT = 40;
 
-/** Onboarding / "add another business" form. Collects the three keys + context. */
-export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
+/**
+ * Collects everything a new organisation needs. Rendered only on /new, which
+ * owns the page heading — hence no title of its own here.
+ */
+export function CreateBusinessForm() {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -89,6 +92,7 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
         llmApiKey: '',
         llmModel: '',
       });
+      // Land on the new organisation's dashboard — it is already selected.
       router.push('/?view=settings');
       router.refresh();
     } catch (err) {
@@ -103,23 +107,8 @@ export function CreateBusinessForm({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-            <Building2 className="size-4" aria-hidden />
-          </span>
-          <div>
-            <CardTitle>{compact ? 'Add another organisation' : 'Add your organisation'}</CardTitle>
-            <CardDescription>
-              Each organisation keeps its own reviews, replies and settings, completely separate
-              from the others.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
+    <Card className="soft">
+      <CardContent className="pt-5">
         <form onSubmit={submit} className="space-y-5">
           <div className="space-y-1.5">
             <Label htmlFor="name" className="micro-label">

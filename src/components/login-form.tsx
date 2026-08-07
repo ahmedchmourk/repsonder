@@ -1,14 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, LogIn, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function LoginForm({ next }: { next: string }) {
-  const router = useRouter();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [show, setShow] = React.useState(false);
@@ -35,9 +33,11 @@ export function LoginForm({ next }: { next: string }) {
         return;
       }
 
-      // Full navigation so the new cookie is picked up by the server render.
-      router.replace(next);
-      router.refresh();
+      // A hard navigation, not router.replace + refresh: the refresh interrupted
+      // the client-side navigation and left the user sitting on /login even
+      // though the session cookie had been set. A full load also guarantees the
+      // server render sees the new cookie.
+      window.location.assign(next);
     } catch {
       setError('Could not reach the server. Check your connection and try again.');
       setBusy(false);
